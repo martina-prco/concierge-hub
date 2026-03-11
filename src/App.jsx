@@ -83,10 +83,10 @@ function parseAnalysis(text) {
 
 // ── STORAGE HELPERS ──────────────────────────────────────────
 async function load(key) {
-  try { const r = await window.storage.get(key); return r ? JSON.parse(r.value) : null; } catch { return null; }
+  try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : null; } catch { return null; }
 }
 async function save(key, val) {
-  try { await window.storage.set(key, JSON.stringify(val)); } catch {}
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 }
 
 // ── MODAL WRAPPER ─────────────────────────────────────────────
