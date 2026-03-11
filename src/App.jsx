@@ -1,4 +1,9 @@
 import { useState, useRef, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = "https://ewxjbvpkvtnqmajjfoua.supabase.co";
+const SUPABASE_KEY = "sb_publishable_3o4JsfaizmX_K51v4EPcaQ_Xl6qDpSg";
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const T = {
   bg: "#0a0a0f", surface: "#13131a", card: "#1a1a24", border: "#2a2a3a",
@@ -49,13 +54,11 @@ function parseAnalysis(text) {
     else if (line.startsWith("SOLUTION:")) solution = line.replace("SOLUTION:", "").trim();
     else if (line.startsWith("TASK:")) {
       const tM = line.match(/TASK:\s*(.+?)\s*\|/), pM = line.match(/PRIORITY:\s*(\w+)/), cM = line.match(/CATEGORY:\s*(.+)/);
-      if (tM) tasks.push({ id: Date.now() + Math.random(), title: tM[1].trim(), priority: pM?.[1]?.trim() || "Medium", category: cM?.[1]?.trim() || "Other", status: "Pending", createdAt: new Date().toLocaleDateString("en-GB"), inCalendar: false });
+      if (tM) tasks.push({ title: tM[1].trim(), priority: pM?.[1]?.trim() || "Medium", category: cM?.[1]?.trim() || "Other", status: "Pending", in_calendar: false });
     }
   });
   return { summary, points, solution, tasks };
 }
-async function load(key) { try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : null; } catch { return null; } }
-async function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
 
 function Modal({ onClose, title, children, maxW = 420 }) {
   return (
@@ -71,18 +74,15 @@ function Modal({ onClose, title, children, maxW = 420 }) {
   );
 }
 
-// ── PROFILE MODAL ─────────────────────────────────────────────
 function ProfileModal({ name, type, feedbacks, tasks, onClose, onAddNote }) {
   const fbs = feedbacks.filter(f => f.entity === name);
-  const myTasks = tasks.filter(t => fbs.some(f => f.analysis?.tasks?.some(at => at.id === t.id)));
+  const myTasks = tasks.filter(t => t.entity === name);
   const pos = fbs.filter(f => f.sentiment === "positive").length;
   const neg = fbs.filter(f => f.sentiment === "negative").length;
   const neu = fbs.filter(f => f.sentiment === "neutral").length;
   const [note, setNote] = useState("");
-
   return (
     <Modal onClose={onClose} title={name} maxW={520}>
-      {/* Sentiment summary */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
         {[{ label: "Positive", val: pos, color: T.green }, { label: "Negative", val: neg, color: T.red }, { label: "Neutral", val: neu, color: T.amber }].map(s => (
           <div key={s.label} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "12px 8px", textAlign: "center" }}>
@@ -91,8 +91,6 @@ function ProfileModal({ name, type, feedbacks, tasks, onClose, onAddNote }) {
           </div>
         ))}
       </div>
-
-      {/* Sentiment bar */}
       {fbs.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: T.textDim, marginBottom: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Sentiment trend</div>
@@ -103,8 +101,6 @@ function ProfileModal({ name, type, feedbacks, tasks, onClose, onAddNote }) {
           </div>
         </div>
       )}
-
-      {/* Pending tasks */}
       {myTasks.filter(t => t.status !== "Resolved").length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: T.textDim, marginBottom: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Pending tasks</div>
@@ -116,17 +112,13 @@ function ProfileModal({ name, type, feedbacks, tasks, onClose, onAddNote }) {
           ))}
         </div>
       )}
-
-      {/* Add note */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 11, color: T.textDim, marginBottom: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Quick note</div>
         <div style={{ display: "flex", gap: 8 }}>
-          <input value={note} onChange={e => setNote(e.target.value)} placeholder="Add a note about this contact..." style={{ ...css.inp, flex: 1 }} />
+          <input value={note} onChange={e => setNote(e.target.value)} placeholder="Add a note..." style={{ ...css.inp, flex: 1 }} />
           <button onClick={() => { if (note.trim()) { onAddNote(name, note.trim()); setNote(""); } }} disabled={!note.trim()} style={{ ...css.btn(T.violet, !note.trim()), whiteSpace: "nowrap" }}>Add</button>
         </div>
       </div>
-
-      {/* Feedback history */}
       <div>
         <div style={{ fontSize: 11, color: T.textDim, marginBottom: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Feedback history ({fbs.length})</div>
         {fbs.length === 0 && <div style={{ fontSize: 12, color: T.textDim, textAlign: "center", padding: 20 }}>No feedback yet.</div>}
@@ -134,10 +126,10 @@ function ProfileModal({ name, type, feedbacks, tasks, onClose, onAddNote }) {
           <div key={fb.id} style={{ background: T.surface, border: `1px solid ${T.border}`, borderLeft: `3px solid ${sColor(fb.sentiment)}`, borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <span style={css.chip(`rgba(${fb.sentiment === "positive" ? "34,197,94" : fb.sentiment === "negative" ? "239,68,68" : "245,158,11"},.12)`, sColor(fb.sentiment))}>{sEmoji(fb.sentiment)} {fb.sentiment}</span>
-              <span style={{ fontSize: 10, color: T.textDim }}>{fb.date}{fb.loggedBy ? ` · ${fb.loggedBy}` : ""}</span>
+              <span style={{ fontSize: 10, color: T.textDim }}>{fb.date}{fb.logged_by ? ` · ${fb.logged_by}` : ""}</span>
             </div>
-            <div style={{ fontSize: 12, color: T.textMid, lineHeight: 1.6 }}>{fb.text}</div>
-            {fb.analysis?.summary && <div style={{ fontSize: 11, color: T.textDim, marginTop: 6, fontStyle: "italic" }}>{fb.analysis.summary}</div>}
+            <div style={{ fontSize: 12, color: T.textMid, lineHeight: 1.6 }}>{fb.raw_text}</div>
+            {fb.summary && <div style={{ fontSize: 11, color: T.textDim, marginTop: 6, fontStyle: "italic" }}>{fb.summary}</div>}
           </div>
         ))}
       </div>
@@ -158,6 +150,7 @@ export default function App() {
   const [concierges, setConcierges] = useState([]);
   const [notes, setNotes] = useState({});
   const [loading, setLoading] = useState(false);
+  const [dbLoading, setDbLoading] = useState(true);
   const [activeAnalysis, setActiveAnalysis] = useState(null);
   const [imgFile, setImgFile] = useState(null);
   const [imgPreview, setImgPreview] = useState(null);
@@ -173,38 +166,38 @@ export default function App() {
   const [csvModal, setCsvModal] = useState(null);
   const [csvText, setCsvText] = useState("");
   const csvFileRef = useRef();
-  const [dataLoaded, setDataLoaded] = useState(false);
   const [entitySearch, setEntitySearch] = useState("");
   const [loggedBy, setLoggedBy] = useState("");
   const [loggedByInput, setLoggedByInput] = useState("");
   const [profileModal, setProfileModal] = useState(null);
   const [contactSearch, setContactSearch] = useState("");
 
+  // ── LOAD FROM SUPABASE ──
   useEffect(() => {
     (async () => {
-      const [fb, tk, vn, cn, lb, nt] = await Promise.all([load("feedbacks"), load("tasks"), load("venues"), load("concierges"), load("loggedBy"), load("notes")]);
-      if (fb) setFeedbacks(fb);
-      if (tk) setTasks(tk);
-      if (vn) setVenues(vn); else setVenues([]);
-      if (cn) setConcierges(cn); else setConcierges([]);
-      if (lb) { setLoggedBy(lb); setLoggedByInput(lb); }
-      if (nt) setNotes(nt);
-      setDataLoaded(true);
+      setDbLoading(true);
+      const [{ data: fbs }, { data: tks }, { data: vns }, { data: cns }, { data: cfg }] = await Promise.all([
+        sb.from("feedbacks").select("*").order("created_at", { ascending: false }),
+        sb.from("tasks").select("*").order("created_at", { ascending: false }),
+        sb.from("venues").select("*").order("name"),
+        sb.from("concierges").select("*").order("name"),
+        sb.from("config").select("*").eq("key", "loggedBy").maybeSingle(),
+      ]);
+      if (fbs) setFeedbacks(fbs);
+      if (tks) setTasks(tks);
+      if (vns) setVenues(vns.map(v => v.name));
+      if (cns) setConcierges(cns.map(c => c.name));
+      if (cfg?.value) { setLoggedBy(cfg.value); setLoggedByInput(cfg.value); }
+      setDbLoading(false);
     })();
   }, []);
-
-  useEffect(() => { if (dataLoaded) save("feedbacks", feedbacks); }, [feedbacks]);
-  useEffect(() => { if (dataLoaded) save("tasks", tasks); }, [tasks]);
-  useEffect(() => { if (dataLoaded) save("venues", venues); }, [venues]);
-  useEffect(() => { if (dataLoaded) save("concierges", concierges); }, [concierges]);
-  useEffect(() => { if (dataLoaded) save("loggedBy", loggedBy); }, [loggedBy]);
-  useEffect(() => { if (dataLoaded) save("notes", notes); }, [notes]);
 
   const entityList = fbType === "venue" ? venues : concierges;
   const filteredEntityList = entityList.filter(e => e.toLowerCase().includes(entitySearch.toLowerCase()));
   const isImg = source === "WhatsApp (screenshot)";
 
   function handleImg(file) { if (!file) return; setImgFile(file); setImgExtracted(false); setImgPreview(URL.createObjectURL(file)); setText(""); }
+
   async function extractImg() {
     if (!imgFile) return; setImgExtracting(true);
     const reader = new FileReader();
@@ -220,16 +213,80 @@ export default function App() {
   }
 
   async function handleSubmit() {
-    if (!text.trim() || !entity) return; setLoading(true);
+    if (!text.trim() || !entity) return;
+    setLoading(true);
     const sentiment = detectSentiment(text);
     const raw = await callClaude(ANALYZE_PROMPT, `Type: ${fbType}\nEntity: ${entity}\nCategory: ${category}\nChannel: ${source}\nMessage:\n"${text}"`);
     const parsed = parseAnalysis(raw);
-    const fb = { id: Date.now(), text, entity, type: fbType, source, category, sentiment, analysis: parsed, date: new Date().toLocaleDateString("en-GB"), taskCount: parsed.tasks.length, imgPreview: isImg ? imgPreview : null, loggedBy: loggedBy || "" };
+
+    // Save feedback
+    const { data: fbRow } = await sb.from("feedbacks").insert({
+      type: fbType, entity, source, category, sentiment,
+      summary: parsed.summary, raw_text: text,
+      points: parsed.points, solution: parsed.solution,
+      logged_by: loggedBy || "",
+      date: new Date().toLocaleDateString("en-GB"),
+    }).select().single();
+
+    // Save tasks
+    let newTasks = [];
+    if (fbRow && parsed.tasks.length > 0) {
+      const { data: tRows } = await sb.from("tasks").insert(
+        parsed.tasks.map(t => ({ ...t, feedback_id: fbRow.id, entity, due_date: "" }))
+      ).select();
+      if (tRows) newTasks = tRows;
+    }
+
+    const fb = { ...fbRow, analysis: parsed };
     setFeedbacks(p => [fb, ...p]);
-    setTasks(p => [...parsed.tasks, ...p]);
-    setActiveAnalysis(fb);
+    setTasks(p => [...newTasks, ...p]);
+    setActiveAnalysis({ ...fb, taskCount: newTasks.length });
     setText(""); setImgFile(null); setImgPreview(null); setImgExtracted(false);
     setLoading(false);
+  }
+
+  async function updateTaskStatus(id, status) {
+    await sb.from("tasks").update({ status }).eq("id", id);
+    setTasks(p => p.map(t => t.id === id ? { ...t, status } : t));
+  }
+
+  async function updateTaskCalendar(id) {
+    await sb.from("tasks").update({ in_calendar: true }).eq("id", id);
+    setTasks(p => p.map(t => t.id === id ? { ...t, in_calendar: true } : t));
+  }
+
+  async function addVenue(name) {
+    if (!name.trim() || venues.includes(name.trim())) return;
+    await sb.from("venues").insert({ name: name.trim() });
+    setVenues(p => [...p, name.trim()]);
+  }
+
+  async function removeVenue(name) {
+    await sb.from("venues").delete().eq("name", name);
+    setVenues(p => p.filter(v => v !== name));
+  }
+
+  async function addConcierge(name) {
+    if (!name.trim() || concierges.includes(name.trim())) return;
+    await sb.from("concierges").insert({ name: name.trim() });
+    setConcierges(p => [...p, name.trim()]);
+  }
+
+  async function removeConcierge(name) {
+    await sb.from("concierges").delete().eq("name", name);
+    setConcierges(p => p.filter(c => c !== name));
+  }
+
+  async function saveLoggedBy(name) {
+    await sb.from("config").upsert({ key: "loggedBy", value: name });
+    setLoggedBy(name);
+  }
+
+  async function addNote(name, note) {
+    const existing = notes[name] || [];
+    const updated = [...existing, { text: note, date: new Date().toLocaleDateString("en-GB") }];
+    await sb.from("config").upsert({ key: `notes_${name}`, value: JSON.stringify(updated) });
+    setNotes(p => ({ ...p, [name]: updated }));
   }
 
   function handleCalendar() {
@@ -242,35 +299,43 @@ export default function App() {
     const end = `${endDate.getFullYear()}${String(endDate.getMonth()+1).padStart(2,"0")}${String(endDate.getDate()).padStart(2,"0")}T${String(endDate.getHours()).padStart(2,"0")}${String(endDate.getMinutes()).padStart(2,"0")}00`;
     window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(calForm.title)}&dates=${start}/${end}&details=${encodeURIComponent("PrimaVIP Concierge Hub task")}`, "_blank");
     setCalMsg("✓ Google Calendar abierto — guardá el evento");
-    setTasks(p => p.map(t => t.id === calModal.id ? { ...t, inCalendar: true } : t));
+    updateTaskCalendar(calModal.id);
   }
 
-  function importCSV(type) {
+  async function importCSV(type) {
     const lines = csvText.split("\n").map(l => l.trim()).filter(Boolean);
     if (!lines.length) return;
     const header = lines[0].toLowerCase();
     const cols = header.split(",").map(c => c.replace(/"/g, "").trim());
-    const firstIdx = cols.indexOf("first name");
-    const lastIdx = cols.indexOf("last name");
-    const nameIdx = cols.indexOf("name");
+    const firstIdx = cols.indexOf("first name"), lastIdx = cols.indexOf("last name"), nameIdx = cols.indexOf("name");
     const names = lines.slice(1).map(line => {
       const parts = line.split(",").map(c => c.replace(/"/g, "").trim());
       if (firstIdx >= 0 && lastIdx >= 0) return `${parts[firstIdx] || ""} ${parts[lastIdx] || ""}`.trim();
       else if (nameIdx >= 0) return parts[nameIdx] || "";
       else return parts[0] || "";
     }).filter(Boolean);
-    if (type === "venues") setVenues(p => [...new Set([...p, ...names])]);
-    else setConcierges(p => [...new Set([...p, ...names])]);
+    if (type === "venues") {
+      const newOnes = names.filter(n => !venues.includes(n));
+      if (newOnes.length) await sb.from("venues").insert(newOnes.map(name => ({ name })));
+      setVenues(p => [...new Set([...p, ...newOnes])]);
+    } else {
+      const newOnes = names.filter(n => !concierges.includes(n));
+      if (newOnes.length) await sb.from("concierges").insert(newOnes.map(name => ({ name })));
+      setConcierges(p => [...new Set([...p, ...newOnes])]);
+    }
     setCsvModal(null); setCsvText("");
-  }
-
-  function addNote(name, note) {
-    setNotes(p => ({ ...p, [name]: [...(p[name] || []), { text: note, date: new Date().toLocaleDateString("en-GB") }] }));
   }
 
   const pendingCount = tasks.filter(t => t.status === "Pending").length;
   const negCount = feedbacks.filter(f => f.sentiment === "negative").length;
   const contactList = (contactTab === "venues" ? venues : concierges).filter(n => n.toLowerCase().includes(contactSearch.toLowerCase()));
+
+  if (dbLoading) return (
+    <div style={{ fontFamily: "'Inter', sans-serif", background: T.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
+      <div style={{ width: 40, height: 40, background: `linear-gradient(135deg, ${T.violet}, ${T.violetLight})`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>◈</div>
+      <div style={{ color: T.textDim, fontSize: 13 }}>Loading Concierge Hub...</div>
+    </div>
+  );
 
   return (
     <div style={{ fontFamily: "'Inter', sans-serif", background: T.bg, minHeight: "100vh", color: T.text }}>
@@ -298,7 +363,7 @@ export default function App() {
 
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "20px 16px" }}>
 
-        {/* ══ TAB 0: NEW ══ */}
+        {/* TAB 0: NEW */}
         {tab === 0 && (
           <div>
             {activeAnalysis && (
@@ -315,9 +380,9 @@ export default function App() {
                   </div>
                   <button onClick={() => setActiveAnalysis(null)} style={{ border: "none", background: "none", cursor: "pointer", color: T.textDim, fontSize: 20 }}>×</button>
                 </div>
-                {activeAnalysis.analysis.summary && <p style={{ fontSize: 13, color: T.textMid, lineHeight: 1.7, marginBottom: 10 }}>{activeAnalysis.analysis.summary}</p>}
-                {activeAnalysis.analysis.points.length > 0 && <ul style={{ margin: "0 0 10px 0", padding: "0 0 0 16px" }}>{activeAnalysis.analysis.points.map((p, i) => <li key={i} style={{ fontSize: 12, color: T.textMid, marginBottom: 4, lineHeight: 1.6 }}>{p}</li>)}</ul>}
-                {activeAnalysis.analysis.solution && <div style={{ background: T.violetGlow, border: `1px solid ${T.violetDim}`, borderRadius: 10, padding: "10px 14px", fontSize: 12, color: T.violetLight, marginBottom: 12 }}>→ {activeAnalysis.analysis.solution}</div>}
+                {activeAnalysis.summary && <p style={{ fontSize: 13, color: T.textMid, lineHeight: 1.7, marginBottom: 10 }}>{activeAnalysis.summary}</p>}
+                {activeAnalysis.analysis?.points?.length > 0 && <ul style={{ margin: "0 0 10px 0", padding: "0 0 0 16px" }}>{activeAnalysis.analysis.points.map((p, i) => <li key={i} style={{ fontSize: 12, color: T.textMid, marginBottom: 4, lineHeight: 1.6 }}>{p}</li>)}</ul>}
+                {activeAnalysis.analysis?.solution && <div style={{ background: T.violetGlow, border: `1px solid ${T.violetDim}`, borderRadius: 10, padding: "10px 14px", fontSize: 12, color: T.violetLight, marginBottom: 12 }}>→ {activeAnalysis.analysis.solution}</div>}
                 {activeAnalysis.taskCount > 0 && <div style={{ fontSize: 12, color: T.green, background: "rgba(34,197,94,.08)", borderRadius: 8, padding: "7px 12px", border: "1px solid rgba(34,197,94,.2)" }}>✦ {activeAnalysis.taskCount} task{activeAnalysis.taskCount > 1 ? "s" : ""} created — view in Tasks tab</div>}
               </div>
             )}
@@ -375,17 +440,16 @@ export default function App() {
                 <div style={{ fontSize: 11, fontWeight: 700, color: T.textDim, marginBottom: 10, letterSpacing: ".08em", textTransform: "uppercase" }}>Recent</div>
                 {feedbacks.slice(0, 5).map(fb => (
                   <div key={fb.id} onClick={() => setActiveAnalysis(fb)} style={{ ...css.card, cursor: "pointer", borderLeft: `3px solid ${sColor(fb.sentiment)}`, marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
-                    {fb.imgPreview && <img src={fb.imgPreview} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{fb.entity}</span>
-                        <span style={{ fontSize: 10, color: T.textDim }}>{fb.date}{fb.loggedBy ? ` · ${fb.loggedBy}` : ""}</span>
+                        <span style={{ fontSize: 10, color: T.textDim }}>{fb.date}{fb.logged_by ? ` · ${fb.logged_by}` : ""}</span>
                       </div>
                       <div style={{ display: "flex", gap: 5, marginBottom: 4 }}>
                         <span style={css.chip(T.violetDim, T.violetLight)}>{fb.type}</span>
                         <span style={css.chip(`rgba(${fb.sentiment === "positive" ? "34,197,94" : fb.sentiment === "negative" ? "239,68,68" : "245,158,11"},.12)`, sColor(fb.sentiment))}>{fb.sentiment}</span>
                       </div>
-                      <div style={{ fontSize: 12, color: T.textDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fb.text}</div>
+                      <div style={{ fontSize: 12, color: T.textDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fb.raw_text}</div>
                     </div>
                   </div>
                 ))}
@@ -394,7 +458,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ══ TAB 1: DASHBOARD ══ */}
+        {/* TAB 1: DASHBOARD */}
         {tab === 1 && (
           <div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10, marginBottom: 16 }}>
@@ -435,7 +499,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ══ TAB 2: TASKS ══ */}
+        {/* TAB 2: TASKS */}
         {tab === 2 && (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -456,11 +520,11 @@ export default function App() {
                           <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
                             <span style={css.chip(t.priority === "High" ? "rgba(239,68,68,.12)" : t.priority === "Medium" ? "rgba(245,158,11,.12)" : "rgba(34,197,94,.12)", t.priority === "High" ? T.red : t.priority === "Medium" ? T.amber : T.green)}>{t.priority}</span>
                             <span style={css.chip(T.surface, T.textMid)}>{t.category}</span>
-                            {t.inCalendar && <span style={css.chip("rgba(59,130,246,.12)", T.blue)}>📅 Calendar</span>}
+                            {t.in_calendar && <span style={css.chip("rgba(59,130,246,.12)", T.blue)}>📅 Calendar</span>}
                           </div>
-                          <button onClick={() => { setCalModal(t); setCalForm({ title: t.title, date: "", time: "09:00", duration: "60" }); setCalMsg(""); }} style={{ fontSize: 11, background: "rgba(59,130,246,.1)", border: `1px solid rgba(59,130,246,.2)`, color: T.blue, borderRadius: 7, padding: "5px 12px", cursor: "pointer", fontWeight: 600 }}>{t.inCalendar ? "📅 Update" : "📅 Add to Calendar"}</button>
+                          <button onClick={() => { setCalModal(t); setCalForm({ title: t.title, date: "", time: "09:00", duration: "60" }); setCalMsg(""); }} style={{ fontSize: 11, background: "rgba(59,130,246,.1)", border: `1px solid rgba(59,130,246,.2)`, color: T.blue, borderRadius: 7, padding: "5px 12px", cursor: "pointer", fontWeight: 600 }}>{t.in_calendar ? "📅 Update" : "📅 Add to Calendar"}</button>
                         </div>
-                        <select value={t.status} onChange={e => setTasks(p => p.map(x => x.id === t.id ? { ...x, status: e.target.value } : x))} style={{ fontSize: 11, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 8px", background: T.surface, color: T.textMid, cursor: "pointer" }}>
+                        <select value={t.status} onChange={e => updateTaskStatus(t.id, e.target.value)} style={{ fontSize: 11, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 8px", background: T.surface, color: T.textMid, cursor: "pointer" }}>
                           {STATUS_LIST.map(s => <option key={s}>{s}</option>)}
                         </select>
                       </div>
@@ -472,27 +536,25 @@ export default function App() {
           </div>
         )}
 
-        {/* ══ TAB 3: CONTACTS ══ */}
+        {/* TAB 3: CONTACTS */}
         {tab === 3 && (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <div style={{ fontSize: 16, fontWeight: 800, color: T.text }}>Contacts</div>
-              <button onClick={() => { if (window.confirm(`Delete all ${contactTab}?`)) { if (contactTab === "venues") setVenues([]); else setConcierges([]); } }} style={{ fontSize: 11, background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.2)", color: T.red, borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontWeight: 700 }}>Clear all</button>
+              <button onClick={async () => { if (window.confirm(`Delete all ${contactTab}?`)) { if (contactTab === "venues") { await sb.from("venues").delete().neq("name","__none__"); setVenues([]); } else { await sb.from("concierges").delete().neq("name","__none__"); setConcierges([]); } } }} style={{ fontSize: 11, background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.2)", color: T.red, borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontWeight: 700 }}>Clear all</button>
             </div>
             <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
               {["venues", "concierges"].map(ct => (
                 <button key={ct} onClick={() => { setContactTab(ct); setContactSearch(""); }} style={{ ...css.btn(T.violet, false), flex: 1, background: contactTab === ct ? T.violet : T.card, color: contactTab === ct ? "#fff" : T.textMid, border: `1px solid ${contactTab === ct ? T.violet : T.border}` }}>{ct === "venues" ? "Venues & Suppliers" : "Concierges"}</button>
               ))}
             </div>
-
             <div style={{ ...css.card, marginBottom: 12 }}>
               <label style={css.lbl}>Add {contactTab === "venues" ? "Venue / Supplier" : "Concierge"}</label>
               <div style={{ display: "flex", gap: 8 }}>
-                <input value={contactTab === "venues" ? newVenue : newConcierge} onChange={e => contactTab === "venues" ? setNewVenue(e.target.value) : setNewConcierge(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { if (contactTab === "venues" && newVenue.trim()) { setVenues(p => [...new Set([...p, newVenue.trim()])]); setNewVenue(""); } else if (contactTab === "concierges" && newConcierge.trim()) { setConcierges(p => [...new Set([...p, newConcierge.trim()])]); setNewConcierge(""); } } }} placeholder={`Name...`} style={{ ...css.inp, flex: 1 }} />
-                <button onClick={() => { if (contactTab === "venues" && newVenue.trim()) { setVenues(p => [...new Set([...p, newVenue.trim()])]); setNewVenue(""); } else if (contactTab === "concierges" && newConcierge.trim()) { setConcierges(p => [...new Set([...p, newConcierge.trim()])]); setNewConcierge(""); } }} style={{ ...css.btn(T.violet, false), whiteSpace: "nowrap" }}>Add</button>
+                <input value={contactTab === "venues" ? newVenue : newConcierge} onChange={e => contactTab === "venues" ? setNewVenue(e.target.value) : setNewConcierge(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { if (contactTab === "venues") { addVenue(newVenue); setNewVenue(""); } else { addConcierge(newConcierge); setNewConcierge(""); } } }} placeholder="Name..." style={{ ...css.inp, flex: 1 }} />
+                <button onClick={() => { if (contactTab === "venues") { addVenue(newVenue); setNewVenue(""); } else { addConcierge(newConcierge); setNewConcierge(""); } }} style={{ ...css.btn(T.violet, false), whiteSpace: "nowrap" }}>Add</button>
               </div>
             </div>
-
             <div style={{ ...css.card, marginBottom: 12 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 4 }}>Import from CSV</div>
               <div style={{ fontSize: 12, color: T.textDim, marginBottom: 12 }}>Export from Google Sheets or Excel as CSV. Duplicates are ignored automatically.</div>
@@ -502,9 +564,7 @@ export default function App() {
                 <input ref={csvFileRef} type="file" accept=".csv,.txt" style={{ display: "none" }} onChange={e => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = ev => { setCsvText(ev.target.result); setCsvModal(contactTab); }; reader.readAsText(file); e.target.value = ""; }} />
               </div>
             </div>
-
             <input value={contactSearch} onChange={e => setContactSearch(e.target.value)} placeholder="Search contacts..." style={{ ...css.inp, marginBottom: 12 }} />
-
             <div>
               {contactList.map((name, i) => {
                 const fbs = feedbacks.filter(f => f.entity === name);
@@ -519,7 +579,7 @@ export default function App() {
                     <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
                       {pos > 0 && <span style={css.chip("rgba(34,197,94,.1)", T.green)}>✦ {pos}</span>}
                       {neg > 0 && <span style={css.chip("rgba(239,68,68,.1)", T.red)}>✕ {neg}</span>}
-                      <button onClick={e => { e.stopPropagation(); if (contactTab === "venues") setVenues(p => p.filter((_, j) => j !== venues.indexOf(name))); else setConcierges(p => p.filter((_, j) => j !== concierges.indexOf(name))); }} style={{ border: "none", background: "none", cursor: "pointer", color: T.textDim, fontSize: 16, padding: "2px 6px" }}>×</button>
+                      <button onClick={e => { e.stopPropagation(); if (contactTab === "venues") removeVenue(name); else removeConcierge(name); }} style={{ border: "none", background: "none", cursor: "pointer", color: T.textDim, fontSize: 16, padding: "2px 6px" }}>×</button>
                     </div>
                   </div>
                 );
@@ -529,7 +589,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ══ TAB 4: SETTINGS ══ */}
+        {/* TAB 4: SETTINGS */}
         {tab === 4 && (
           <div>
             <div style={{ fontSize: 16, fontWeight: 800, color: T.text, marginBottom: 16 }}>Settings</div>
@@ -538,7 +598,7 @@ export default function App() {
               <div style={{ fontSize: 12, color: T.textDim, marginBottom: 12 }}>Appears on every feedback you log.</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <input value={loggedByInput} onChange={e => setLoggedByInput(e.target.value)} placeholder="e.g. Martina" style={{ ...css.inp, flex: 1 }} />
-                <button onClick={() => setLoggedBy(loggedByInput.trim())} disabled={!loggedByInput.trim()} style={{ ...css.btn(T.violet, !loggedByInput.trim()), whiteSpace: "nowrap" }}>Save</button>
+                <button onClick={() => saveLoggedBy(loggedByInput.trim())} disabled={!loggedByInput.trim()} style={{ ...css.btn(T.violet, !loggedByInput.trim()), whiteSpace: "nowrap" }}>Save</button>
               </div>
               {loggedBy && <div style={{ fontSize: 12, color: T.green, marginTop: 10 }}>✦ Logged as: <strong>{loggedBy}</strong></div>}
             </div>
@@ -571,15 +631,7 @@ export default function App() {
 
       {/* MODAL: Profile */}
       {profileModal && (
-        <ProfileModal
-          name={profileModal.name}
-          type={profileModal.type}
-          feedbacks={feedbacks}
-          tasks={tasks}
-          notes={notes[profileModal.name] || []}
-          onClose={() => setProfileModal(null)}
-          onAddNote={addNote}
-        />
+        <ProfileModal name={profileModal.name} type={profileModal.type} feedbacks={feedbacks} tasks={tasks} notes={notes[profileModal.name] || []} onClose={() => setProfileModal(null)} onAddNote={addNote} />
       )}
     </div>
   );
