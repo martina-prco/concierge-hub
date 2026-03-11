@@ -220,8 +220,25 @@ export default function App() {
 
   // ── CSV IMPORT ──
   function importCSV(type) {
-    const lines = csvText.split("\n").map(l => l.trim()).filter(l => l && !l.toLowerCase().includes("name") && !l.toLowerCase().includes("venue") && !l.toLowerCase().includes("concierge"));
-    const names = lines.map(l => l.split(",")[0].trim()).filter(Boolean);
+    const lines = csvText.split("\n").map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return;
+    // detect headers
+    const header = lines[0].toLowerCase();
+    const cols = header.split(",").map(c => c.replace(/"/g, "").trim());
+    const firstIdx = cols.indexOf("first name");
+    const lastIdx = cols.indexOf("last name");
+    const nameIdx = cols.indexOf("name");
+    const dataLines = lines.slice(1).filter(l => l);
+    const names = dataLines.map(line => {
+      const parts = line.split(",").map(c => c.replace(/"/g, "").trim());
+      if (firstIdx >= 0 && lastIdx >= 0) {
+        return `${parts[firstIdx] || ""} ${parts[lastIdx] || ""}`.trim();
+      } else if (nameIdx >= 0) {
+        return parts[nameIdx] || "";
+      } else {
+        return parts[0] || "";
+      }
+    }).filter(Boolean);
     if (type === "venues") setVenues(p => [...new Set([...p, ...names])]);
     else setConcierges(p => [...new Set([...p, ...names])]);
     setCsvModal(null); setCsvText("");
