@@ -488,7 +488,10 @@ export default function App() {
         {/* ══ TAB 3: CONTACTS ══ */}
         {tab === 3 && (
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: T.text, marginBottom: 16 }}>Contacts</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: T.text }}>Contacts</div>
+              <button onClick={() => { if (window.confirm("¿Borrar todos los " + contactTab + "?")) { if (contactTab === "venues") setVenues([]); else setConcierges([]); } }} style={{ fontSize: 11, background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.2)", color: T.red, borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontWeight: 700 }}>Clear all</button>
+            </div>
             <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
               {["venues", "concierges"].map(ct => (
                 <button key={ct} onClick={() => setContactTab(ct)} style={{ ...css.btn(T.violet, false), flex: 1, background: contactTab === ct ? T.violet : T.card, color: contactTab === ct ? "#fff" : T.textMid, border: `1px solid ${contactTab === ct ? T.violet : T.border}` }}>
