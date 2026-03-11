@@ -62,7 +62,7 @@ SOLUTION: [concrete next step]`;
 async function callClaude(sys, userContent, mcpServers) {
   const body = { model: "claude-sonnet-4-20250514", max_tokens: 1500, system: sys, messages: [{ role: "user", content: userContent }] };
   if (mcpServers) body.mcp_servers = mcpServers;
-  const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const r = await fetch("/api/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const d = await r.json();
   return d.content?.filter(b => b.type === "text").map(b => b.text).join("\n") || "";
 }
