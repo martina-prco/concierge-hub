@@ -1,0 +1,50 @@
+export default async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).end();
+
+  try {
+    const { text, user_name, channel_name } = req.body;
+    if (!text) return res.status(400).json({ error: "No text" });
+
+    // Analyze with Claude
+    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1500,
+        system: `You are a concierge liaison assistant for PrimaVIP, a luxury dining platform.
+Analyze this Slack message and determine if it's feedback about a venue/supplier or a concierge.
+Respond ONLY in this exact format, no markdown:
+TYPE: [venue or concierge]
+ENTITY: [name of venue or concierge mentioned]
+SENTIMENT: [positive, negative, or neutral]
+SUMMARY: [2-3 line executive summary]
+TASK: [action 1] | PRIORITY: [High/Medium/Low] | CATEGORY: [Communication/Logistics/Venue Quality/Price/Value/Punctuality/Attitude/Service/Other]
+TASK: [action 2] | PRIORITY: [High/Medium/Low] | CATEGORY: [category]
+SOLUTION: [concrete next step]`,
+        messages: [{ role: "user", content: `Slack message from ${user_name || "team"} in #${channel_name || "feedback"}:\n"${text}"` }],
+      }),
+    });
+
+    const claudeData = await claudeRes.json();
+    const analysis = claudeData.content?.[0]?.text || "";
+
+    res.status(200).json({ 
+      ok: true, 
+      message: "Feedback received and analyzed",
+      analysis,
+      original: text,
+      loggedBy: user_name || "Slack",
+      date: new Date().toLocaleDateString("en-GB")
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
