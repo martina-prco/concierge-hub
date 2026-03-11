@@ -138,6 +138,7 @@ export default function App() {
   const csvFileRef = useRef();
   // loaded
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [entitySearch, setEntitySearch] = useState("");
 
   // ── LOAD FROM STORAGE ──
   useEffect(() => {
@@ -158,6 +159,7 @@ export default function App() {
   useEffect(() => { if (dataLoaded) save("concierges", concierges); }, [concierges]);
 
   const entityList = fbType === "venue" ? venues : concierges;
+  const filteredEntityList = entityList.filter(e => e.toLowerCase().includes(entitySearch.toLowerCase()));
   const isImg = source === "WhatsApp (screenshot)";
 
   // ── IMAGE ──
@@ -322,9 +324,10 @@ export default function App() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
                 <div>
                   <label style={css.lbl}>{fbType === "venue" ? "Venue / Supplier" : "Concierge"}</label>
-                  <select value={entity} onChange={e => setEntity(e.target.value)} style={{ ...css.inp }}>
+                  <input value={entitySearch} onChange={e => { setEntitySearch(e.target.value); setEntity(""); }} placeholder="Search..." style={{ ...css.inp, marginBottom: 6 }} />
+                  <select value={entity} onChange={e => { setEntity(e.target.value); setEntitySearch(""); }} style={{ ...css.inp }}>
                     <option value="">Select...</option>
-                    {entityList.map(v => <option key={v}>{v}</option>)}
+                    {filteredEntityList.map(v => <option key={v}>{v}</option>)}
                   </select>
                 </div>
                 <div>
