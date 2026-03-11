@@ -199,18 +199,23 @@ export default function App() {
   }
 
   // ── CALENDAR ──
-  async function handleCalendar() {
-    if (!calForm.date || !calForm.title) return; setCalLoading(true); setCalMsg("");
-    try {
-      await callClaude(
-        "Create the event in Google Calendar using the gcal MCP tool.",
-        `Create event titled "${calForm.title}" on ${calForm.date} at ${calForm.time} for ${calForm.duration} minutes. Add description: PrimaVIP Concierge Hub task.`,
-        [{ type: "url", url: "https://gcal.mcp.claude.com/mcp", name: "gcal" }]
-      );
-      setCalMsg("✓ Event created in Google Calendar");
-      setTasks(p => p.map(t => t.id === calModal.id ? { ...t, inCalendar: true } : t));
-    } catch { setCalMsg("✕ Could not connect to Google Calendar"); }
-    setCalLoading(false);
+  function handleCalendar() {
+    if (!calForm.date || !calForm.title) return;
+    const [year, month, day] = calForm.date.split("-");
+    const [hour, minute] = calForm.time.split(":");
+    const start = `${year}${month}${day}T${hour}${minute}00`;
+    const endDate = new Date(calForm.date + "T" + calForm.time);
+    endDate.setMinutes(endDate.getMinutes() + parseInt(calForm.duration));
+    const endY = endDate.getFullYear();
+    const endM = String(endDate.getMonth()+1).padStart(2,"0");
+    const endD = String(endDate.getDate()).padStart(2,"0");
+    const endH = String(endDate.getHours()).padStart(2,"0");
+    const endMin = String(endDate.getMinutes()).padStart(2,"0");
+    const end = `${endY}${endM}${endD}T${endH}${endMin}00`;
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(calForm.title)}&dates=${start}/${end}&details=${encodeURIComponent("PrimaVIP Concierge Hub task")}`;
+    window.open(url, "_blank");
+    setCalMsg("✓ Google Calendar abierto — guardá el evento ahí");
+    setTasks(p => p.map(t => t.id === calModal.id ? { ...t, inCalendar: true } : t));
   }
 
   // ── CSV IMPORT ──
@@ -538,8 +543,8 @@ export default function App() {
             </div>
           </div>
           {calMsg && <div style={{ fontSize: 12, marginBottom: 12, padding: "9px 12px", borderRadius: 8, background: calMsg.startsWith("✓") ? "rgba(34,197,94,.1)" : "rgba(239,68,68,.1)", color: calMsg.startsWith("✓") ? T.green : T.red, border: `1px solid ${calMsg.startsWith("✓") ? "rgba(34,197,94,.2)" : "rgba(239,68,68,.2)"}` }}>{calMsg}</div>}
-          <button onClick={handleCalendar} disabled={calLoading || !calForm.date || !calForm.title} style={{ ...css.btn(T.violet, calLoading || !calForm.date || !calForm.title), width: "100%" }}>
-            {calLoading ? "Creating..." : "Create Event →"}
+          <button onClick={handleCalendar} disabled={!calForm.date || !calForm.title} style={{ ...css.btn(T.violet, !calForm.date || !calForm.title), width: "100%" }}>
+            Open in Google Calendar →
           </button>
         </Modal>
       )}
