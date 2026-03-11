@@ -32,7 +32,7 @@ const css = {
 const CATEGORIES = ["Communication", "Logistics", "Venue Quality", "Price/Value", "Punctuality", "Attitude/Service", "Other"];
 const SOURCES = ["WhatsApp (text)", "WhatsApp (screenshot)", "Email (paste)", "Phone Call", "In-person Meeting"];
 const STATUS_LIST = ["Pending", "In Progress", "Resolved"];
-const TABS = ["New", "Dashboard", "Tasks", "Contacts"];
+const TABS = ["New", "Dashboard", "Tasks", "Contacts", "Settings"];
 
 const SENT_KW = {
   neg: ["problem","bad","fail","error","late","poor","dirty","broken","complaint","issue","terrible","horrible","slow","unacceptable","problema","mal","falla","tarde","queja","pésimo"],
@@ -139,15 +139,18 @@ export default function App() {
   // loaded
   const [dataLoaded, setDataLoaded] = useState(false);
   const [entitySearch, setEntitySearch] = useState("");
+  const [loggedBy, setLoggedBy] = useState("");
+  const [loggedByInput, setLoggedByInput] = useState("");
 
   // ── LOAD FROM STORAGE ──
   useEffect(() => {
     (async () => {
-      const [fb, tk, vn, cn] = await Promise.all([load("feedbacks"), load("tasks"), load("venues"), load("concierges")]);
+      const [fb, tk, vn, cn, lb] = await Promise.all([load("feedbacks"), load("tasks"), load("venues"), load("concierges"), load("loggedBy")]);
       if (fb) setFeedbacks(fb);
       if (tk) setTasks(tk);
       if (vn) setVenues(vn); else setVenues(["Venue A", "Venue B"]);
       if (cn) setConcierges(cn); else setConcierges(["Concierge 1", "Concierge 2"]);
+      if (lb) { setLoggedBy(lb); setLoggedByInput(lb); }
       setDataLoaded(true);
     })();
   }, []);
@@ -157,6 +160,7 @@ export default function App() {
   useEffect(() => { if (dataLoaded) save("tasks", tasks); }, [tasks]);
   useEffect(() => { if (dataLoaded) save("venues", venues); }, [venues]);
   useEffect(() => { if (dataLoaded) save("concierges", concierges); }, [concierges]);
+  useEffect(() => { if (dataLoaded) save("loggedBy", loggedBy); }, [loggedBy]);
 
   const entityList = fbType === "venue" ? venues : concierges;
   const filteredEntityList = entityList.filter(e => e.toLowerCase().includes(entitySearch.toLowerCase()));
@@ -192,7 +196,7 @@ export default function App() {
     const sentiment = detectSentiment(text);
     const raw = await callClaude(ANALYZE_PROMPT, `Type: ${fbType}\nEntity: ${entity}\nCategory: ${category}\nChannel: ${source}\nMessage:\n"${text}"`);
     const parsed = parseAnalysis(raw);
-    const fb = { id: Date.now(), text, entity, type: fbType, source, category, sentiment, analysis: parsed, date: new Date().toLocaleDateString("en-GB"), taskCount: parsed.tasks.length, imgPreview: isImg ? imgPreview : null };
+    const fb = { id: Date.now(), text, entity, type: fbType, source, category, sentiment, analysis: parsed, date: new Date().toLocaleDateString("en-GB"), taskCount: parsed.tasks.length, imgPreview: isImg ? imgPreview : null, loggedBy: loggedBy || "Unknown" };
     setFeedbacks(p => [fb, ...p]);
     setTasks(p => [...parsed.tasks, ...p]);
     setActiveAnalysis(fb);
@@ -542,7 +546,21 @@ export default function App() {
         )}
       </div>
 
-      {/* MODAL: Calendar */}
+        {/* ══ TAB 4: SETTINGS ══ */}
+        {tab === 4 && (
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: T.text, marginBottom: 16 }}>Settings</div>
+            <div style={{ ...css.card }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 4 }}>Your name</div>
+              <div style={{ fontSize: 12, color: T.textDim, marginBottom: 12 }}>This will appear on every feedback you log.</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input value={loggedByInput} onChange={e => setLoggedByInput(e.target.value)} placeholder="e.g. Martina" style={{ ...css.inp, flex: 1 }} />
+                <button onClick={() => setLoggedBy(loggedByInput.trim())} disabled={!loggedByInput.trim()} style={{ ...css.btn(T.violet, !loggedByInput.trim()), whiteSpace: "nowrap" }}>Save</button>
+              </div>
+              {loggedBy && <div style={{ fontSize: 12, color: T.green, marginTop: 10 }}>✦ Logged as: <strong>{loggedBy}</strong></div>}
+            </div>
+          </div>
+        )}
       {calModal && (
         <Modal onClose={() => setCalModal(null)} title="📅 Add to Google Calendar">
           <div style={{ marginBottom: 12 }}>
